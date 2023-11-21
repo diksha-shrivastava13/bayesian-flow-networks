@@ -373,6 +373,31 @@ class DiscreteBayesianFlowLoss(Loss):
         return -output_dist.log_prob(flat_data)
 
 
+
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3,), stride=(stride,), padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3,), stride=(stride,), padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=(1,), stride=(stride,), bias=False),
+                nn.BatchNorm2d(out_channels)
+            )
+
+    def forward(self, x):
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = self.relu(out)
+        return out
+
+
 class BFN(nn.Module):
     def __init__(self, net: nn.Module, bayesian_flow: BayesianFlow, loss: Loss):
         super().__init__()
@@ -389,6 +414,14 @@ class BFN(nn.Module):
             t = torch.randint(0, n_steps, (data.size(0),), device=data.device).unsqueeze(-1) / n_steps
         t = (torch.ones_like(data).flatten(start_dim=1) * t).reshape_as(data)
         return t
+
+    def _make_layer(self, block, out_channels, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_channels, out_channels, stride))
+            self.in_channels = out_channels
+        return nn.Sequential(*layers)
 
     def forward(
         self, data: Tensor, t: Optional[Tensor] = None, n_steps: Optional[int] = None

@@ -1,8 +1,7 @@
 # Bayesian Flow Networks
 
-This is the official code release for [Bayesian Flow Networks](https://arxiv.org/abs/2308.07037) by Alex Graves, Rupesh Kumar Srivastava, Timothy Atkinson and Faustino Gomez.
+Attempt to improve the existing codebase.
 
-<img src="bfn.gif" alt="Overview of BFN process" style="width:600px;"/>
 
 ## Reading Guide
 
